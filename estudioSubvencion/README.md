@@ -48,8 +48,9 @@ php importar.php ruta/al/Subvencion_Normal_Anexo_Detalle_Escolaridad_RBD_10618_2
 3. Se busca la **fila de encabezado** ("Cod. Ens.", "Grado", "Glosa Subvención", …) y de ahí se
    aprende en qué posición viene cada dato. Como la cantidad de columnas cambia de un mes a otro,
    el orden no se asume fijo: si un mes trae una columna nueva se ignora, y si falta alguna queda
-   en cero. Después se toman como detalle las filas que empiezan con un número; las filas
-   "Total ..." se ignoran, porque los totales se recalculan.
+   en cero (por ejemplo, algunos meses agregan "Asistencia Marzo/Abril/Mayo": se guarda el
+   "Promedio Asistencia", que es el que se paga). Después se toman como detalle las filas que
+   empiezan con un número; las filas "Total ..." se ignoran, porque los totales se recalculan.
 4. Los montos vienen como `$ 7.636.750` (se convierten a `7636750`) y los decimales como
    `78,9344` (coma decimal chilena → `78.9344`).
 

@@ -98,7 +98,7 @@ class Parser
         ];
     }
 
-    /** Extrae solo las filas de detalle (las que tienen las 14 columnas). */
+    /** Extrae solo las filas de detalle, ubicando cada dato según el encabezado. */
     private static function filas(string $html): array
     {
         $doc = new DOMDocument();
@@ -168,7 +168,10 @@ class Parser
                 str_contains($titulo, 'letra') => 'letra',
                 str_contains($titulo, 'nivel') => 'nivel',
                 str_contains($titulo, 'glosa') => 'glosa',
-                str_contains($titulo, 'asistencia') => 'asistencia',
+                // Algunos meses agregan la asistencia de cada mes del trimestre
+                // ("Asistencia Marzo", "Asistencia Abril"...); la que se paga es el promedio.
+                str_contains($titulo, 'promedio') && str_contains($titulo, 'asistencia') => 'asistencia',
+                str_contains($titulo, 'asistencia') => 'asistencia_del_mes',
                 str_contains($titulo, 'factor') => 'factor_use',
                 str_contains($titulo, 'base') => 'subv_base',
                 str_contains($titulo, 'zona') => 'subv_zona',
@@ -181,6 +184,10 @@ class Parser
             if ($clave !== null && !isset($columnas[$clave])) {
                 $columnas[$clave] = $i;
             }
+        }
+
+        if (!isset($columnas['asistencia']) && isset($columnas['asistencia_del_mes'])) {
+            $columnas['asistencia'] = $columnas['asistencia_del_mes'];
         }
 
         // Es el encabezado solo si trae lo mínimo para identificar y valorizar un curso.
