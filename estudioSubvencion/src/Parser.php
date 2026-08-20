@@ -108,6 +108,7 @@ class Parser
         libxml_use_internal_errors($previo);
 
         $filas = [];
+        $columnas = null; // posición de cada dato, según el encabezado del archivo
         foreach ($doc->getElementsByTagName('tr') as $tr) {
             $celdas = [];
             foreach ($tr->childNodes as $hijo) {
@@ -115,29 +116,89 @@ class Parser
                     $celdas[] = trim(preg_replace('/\s+/u', ' ', $hijo->textContent) ?? '');
                 }
             }
-            if (count($celdas) !== 14 || !ctype_digit($celdas[0])) {
-                continue; // encabezados y subtotales
+            if ($celdas === []) {
+                continue;
+            }
+
+            // La cantidad de columnas cambia entre meses, así que el orden se aprende
+            // leyendo el encabezado en vez de darlo por fijo.
+            $posibles = self::mapaColumnas($celdas);
+            if ($posibles !== null) {
+                $columnas = $posibles;
+                continue;
+            }
+            if ($columnas === null || !ctype_digit($celdas[0])) {
+                continue; // subtotales, totales y filas anteriores al encabezado
             }
 
             $filas[] = [
-                'cod_ens' => (int) $celdas[0],
-                'grado' => (int) $celdas[1],
-                'jec' => $celdas[2],
-                'letra' => $celdas[3],
-                'ens' => (int) $celdas[4],
-                'nivel' => (int) $celdas[5],
-                'glosa' => $celdas[6],
-                'asistencia' => self::numero($celdas[7]),
-                'factor_use' => self::numero($celdas[8]),
-                'subv_base' => self::pesos($celdas[9]),
-                'subv_ley' => self::pesos($celdas[10]),
-                'subv_zona' => self::pesos($celdas[11]),
-                'subv_rural' => self::pesos($celdas[12]),
-                'total_ley' => self::pesos($celdas[13]),
+                'cod_ens' => (int) self::celda($celdas, $columnas, 'cod_ens'),
+                'grado' => (int) self::celda($celdas, $columnas, 'grado'),
+                'jec' => self::celda($celdas, $columnas, 'jec'),
+                'letra' => self::celda($celdas, $columnas, 'letra'),
+                'ens' => (int) self::celda($celdas, $columnas, 'ens'),
+                'nivel' => (int) self::celda($celdas, $columnas, 'nivel'),
+                'glosa' => self::celda($celdas, $columnas, 'glosa'),
+                'asistencia' => self::numero(self::celda($celdas, $columnas, 'asistencia')),
+                'factor_use' => self::numero(self::celda($celdas, $columnas, 'factor_use')),
+                'subv_base' => self::pesos(self::celda($celdas, $columnas, 'subv_base')),
+                'subv_ley' => self::pesos(self::celda($celdas, $columnas, 'subv_ley')),
+                'subv_zona' => self::pesos(self::celda($celdas, $columnas, 'subv_zona')),
+                'subv_rural' => self::pesos(self::celda($celdas, $columnas, 'subv_rural')),
+                'total_ley' => self::pesos(self::celda($celdas, $columnas, 'total_ley')),
             ];
         }
 
         return $filas;
+    }
+
+    /**
+     * Si la fila recibida es el encabezado de la tabla, devuelve dónde quedó cada dato
+     * (por ejemplo ['cod_ens' => 0, 'glosa' => 6, ...]). Si no lo es, devuelve null.
+     */
+    private static function mapaColumnas(array $celdas): ?array
+    {
+        $columnas = [];
+        foreach ($celdas as $i => $celda) {
+            $titulo = mb_strtolower(self::sinAcentos($celda), 'UTF-8');
+            $clave = match (true) {
+                str_contains($titulo, 'cod') && str_contains($titulo, 'ens') => 'cod_ens',
+                str_contains($titulo, 'grado') => 'grado',
+                str_contains($titulo, 'jec') => 'jec',
+                str_contains($titulo, 'letra') => 'letra',
+                str_contains($titulo, 'nivel') => 'nivel',
+                str_contains($titulo, 'glosa') => 'glosa',
+                str_contains($titulo, 'asistencia') => 'asistencia',
+                str_contains($titulo, 'factor') => 'factor_use',
+                str_contains($titulo, 'base') => 'subv_base',
+                str_contains($titulo, 'zona') => 'subv_zona',
+                str_contains($titulo, 'rural') => 'subv_rural',
+                str_contains($titulo, 'total') && str_contains($titulo, 'ley') => 'total_ley',
+                str_contains($titulo, 'ley') => 'subv_ley',
+                $titulo === 'ens' => 'ens',
+                default => null,
+            };
+            if ($clave !== null && !isset($columnas[$clave])) {
+                $columnas[$clave] = $i;
+            }
+        }
+
+        // Es el encabezado solo si trae lo mínimo para identificar y valorizar un curso.
+        foreach (['cod_ens', 'grado', 'glosa', 'asistencia', 'subv_base'] as $obligatoria) {
+            if (!isset($columnas[$obligatoria])) {
+                return null;
+            }
+        }
+
+        return $columnas;
+    }
+
+    /** Valor de una columna; vacío si ese mes no la trae. */
+    private static function celda(array $celdas, array $columnas, string $clave): string
+    {
+        $i = $columnas[$clave] ?? null;
+
+        return $i === null ? '' : ($celdas[$i] ?? '');
     }
 
     // "78,9344" -> 78.9344 (en Chile la coma es el separador decimal)
