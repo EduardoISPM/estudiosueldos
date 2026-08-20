@@ -45,8 +45,11 @@ php importar.php ruta/al/Subvencion_Normal_Anexo_Detalle_Escolaridad_RBD_10618_2
 1. El archivo es una página HTML con una tabla grande.
 2. Del texto se extraen: **sostenedor**, **establecimiento (RBD)** y **MES PAGO** (por ejemplo
    "ENERO 2026"). Si no aparecen, se usa el `AAAAMM` del nombre del archivo.
-3. De la tabla se toman solo las filas de **14 columnas** que empiezan con un número: esas son
-   las filas de detalle. Las filas "Total ..." se ignoran, porque los totales se recalculan.
+3. Se busca la **fila de encabezado** ("Cod. Ens.", "Grado", "Glosa Subvención", …) y de ahí se
+   aprende en qué posición viene cada dato. Como la cantidad de columnas cambia de un mes a otro,
+   el orden no se asume fijo: si un mes trae una columna nueva se ignora, y si falta alguna queda
+   en cero. Después se toman como detalle las filas que empiezan con un número; las filas
+   "Total ..." se ignoran, porque los totales se recalculan.
 4. Los montos vienen como `$ 7.636.750` (se convierten a `7636750`) y los decimales como
    `78,9344` (coma decimal chilena → `78.9344`).
 
